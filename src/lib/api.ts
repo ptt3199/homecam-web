@@ -59,6 +59,9 @@ class ApiClient {
   async getCameraStatus(): Promise<CameraStatusResponse> {
     return this.withRetry(async () => {
       const response = await cameraStatusCameraStatusGet();
+      if (!response || !response.data) {
+        throw new Error('No response data received from camera status endpoint');
+      }
       return response.data as CameraStatusResponse;
     });
   }
@@ -67,6 +70,9 @@ class ApiClient {
   async getCameraDebug(): Promise<CameraDebugResponse> {
     return this.withRetry(async () => {
       const response = await cameraDebugCameraDebugGet();
+      if (!response || !response.data) {
+        throw new Error('No response data received from camera debug endpoint');
+      }
       return response.data as CameraDebugResponse;
     });
   }
@@ -80,6 +86,9 @@ class ApiClient {
   async takeSnapshot(): Promise<Blob> {
     return this.withRetry(async () => {
       const response = await snapshotSnapshotGet();
+      if (!response || response.data === undefined) {
+        throw new Error('No response data received from snapshot endpoint');
+      }
       // For blob responses, we need to handle it differently
       if (response.data instanceof Blob) {
         return response.data;
@@ -93,6 +102,9 @@ class ApiClient {
   async healthCheck(): Promise<{ status: string }> {
     return this.withRetry(async () => {
       const response = await indexGet();
+      if (!response || !response.data) {
+        throw new Error('No response data received from health check endpoint');
+      }
       return response.data as { status: string };
     });
   }

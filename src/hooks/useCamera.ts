@@ -37,6 +37,11 @@ export function useCamera() {
 
       setConnectionLatency(latency);
       
+      // Check if status is valid before accessing its properties
+      if (!status) {
+        throw new Error('Failed to get camera status');
+      }
+      
       setCameraState(prev => ({
         ...prev,
         isConnected: status.camera_available,
