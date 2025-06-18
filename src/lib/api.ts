@@ -3,8 +3,6 @@ import {
   cameraDebugCameraDebugGet,
   snapshotSnapshotGet,
   indexGet,
-  type CameraStatusCameraStatusGetResponses,
-  type CameraDebugCameraDebugGetResponses
 } from '@/client';
 import { API_CONFIG, API_ENDPOINTS } from './constants';
 
@@ -116,6 +114,7 @@ class ApiClient {
       await this.healthCheck();
       return Date.now() - start;
     } catch (error) {
+      console.error('Error testing latency:', error);
       return -1; // Error case
     }
   }

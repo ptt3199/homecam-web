@@ -33,7 +33,6 @@ export default function HomePage() {
     toggleMicrophone,
     toggleSpeaker,
     setVolume,
-    requestMicrophoneAccess,
   } = useAudio();
 
   const {

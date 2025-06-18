@@ -1,7 +1,7 @@
 import { VideoPlayerProps } from '@/types/camera';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
-export function VideoPlayer({ streamUrl, isConnected, isLoading, error, quality }: VideoPlayerProps) {
+export function VideoPlayer({ streamUrl, isConnected, isLoading, error }: VideoPlayerProps) {
   if (isLoading) {
     return (
       <div className="aspect-video bg-slate-900 rounded-lg flex items-center justify-center">

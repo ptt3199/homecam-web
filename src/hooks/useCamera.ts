@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CameraState, ConnectionQuality } from '@/types/camera';
-import { cameraApi, CameraStatusResponse } from '@/lib/api';
+import { cameraApi } from '@/lib/api';
 import { DEFAULTS, CONNECTION_THRESHOLDS, STORAGE_KEYS } from '@/lib/constants';
 import { useLocalStorage } from './useLocalStorage';
 
