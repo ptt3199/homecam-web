@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@clerk/nextjs';
 import { Layout } from '@/components/layout/Layout';
 import { Header } from '@/components/layout/Header';
 import { VideoPlayer } from '@/components/video/VideoPlayer';
@@ -10,9 +11,13 @@ import { VideoControls } from '@/components/controls/VideoControls';
 import { useCamera } from '@/hooks/useCamera';
 import { useAudio } from '@/hooks/useAudio';
 import { useFullscreen } from '@/hooks/useFullscreen';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { cameraApi } from '@/lib/api';
 
-export default function HomePage() {
+function HomePage() {
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const { getToken } = useAuth();
+  const [tokenCopied, setTokenCopied] = useState(false);
 
   // Initialize hooks
   const {
@@ -40,10 +45,19 @@ export default function HomePage() {
     toggleFullscreen,
   } = useFullscreen();
 
-  // Connect to camera on mount
+  // Setup API client with token getter
   useEffect(() => {
-    connectCamera();
-  }, [connectCamera]);
+    cameraApi.setTokenGetter(async () => {
+      try {
+        return await getToken();
+      } catch (error) {
+        console.error('Failed to get auth token:', error);
+        return null;
+      }
+    });
+  }, [getToken]);
+
+  // Don't auto-connect - user must explicitly start streaming
 
   // Handle fullscreen toggle
   const handleFullscreenToggle = async () => {
@@ -82,6 +96,25 @@ export default function HomePage() {
     }
   };
 
+  // Handle copy JWT token to clipboard
+  const handleCopyToken = async () => {
+    try {
+      const token = await getToken();
+      if (token) {
+        await navigator.clipboard.writeText(token);
+        setTokenCopied(true);
+        console.log('JWT Token copied to clipboard');
+        
+        // Reset the feedback after 2 seconds
+        setTimeout(() => setTokenCopied(false), 2000);
+      } else {
+        console.error('No token available');
+      }
+    } catch (error) {
+      console.error('Failed to copy token:', error);
+    }
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -94,99 +127,114 @@ export default function HomePage() {
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-6 max-w-7xl">
+
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             
-            {/* Video Section - Takes up most space */}
+            {/* Video Section */}
             <div className="lg:col-span-3">
               <div 
                 ref={videoContainerRef}
                 className="relative group"
               >
-                {/* Video Player */}
-                <VideoPlayer
-                  streamUrl={cameraState.streamUrl}
-                  isConnected={cameraState.isConnected}
-                  isLoading={cameraState.isLoading}
-                  error={cameraState.error}
-                  quality={cameraState.quality}
-                />
-
-                {/* Video Overlay */}
-                <VideoOverlay
-                  isRecording={cameraState.isRecording}
-                  connectionQuality={connectionQuality}
-                  isConnected={cameraState.isConnected}
-                />
-
-                {/* Video Controls Overlay */}
-                <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="bg-black/70 backdrop-blur-sm rounded-lg p-4">
-                    <VideoControls
-                      quality={cameraState.quality}
-                      onQualityChange={changeQuality}
-                      onFullscreenToggle={handleFullscreenToggle}
-                      onSnapshot={handleSnapshot}
-                      isFullscreen={isFullscreen}
-                      isConnected={cameraState.isConnected}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Connection Status Card */}
-              <div className="mt-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      cameraState.isConnected 
-                        ? 'bg-green-500 animate-pulse' 
-                        : cameraState.isLoading 
-                          ? 'bg-yellow-500 animate-pulse' 
-                          : 'bg-red-500'
-                    }`} />
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
-                        {cameraState.isConnected 
-                          ? 'Connected' 
-                          : cameraState.isLoading 
-                            ? 'Connecting...' 
-                            : 'Disconnected'
-                        }
-                      </p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {cameraState.isConnected 
-                          ? `Latency: ${connectionLatency}ms • Quality: ${connectionQuality}`
-                          : cameraState.error || 'Camera unavailable'
+                {/* Video Player - Only show when connected */}
+                {cameraState.isConnected && cameraState.streamUrl ? (
+                  <VideoPlayer
+                    streamUrl={cameraState.streamUrl}
+                    isConnected={cameraState.isConnected}
+                    isLoading={cameraState.isLoading}
+                    error={cameraState.error}
+                    quality={cameraState.quality}
+                  />
+                ) : (
+                  <div className="aspect-video bg-slate-200 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 text-slate-400 dark:text-slate-500">
+                        📹
+                      </div>
+                      <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">
+                        Camera Stream Stopped
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-500">
+                        {cameraState.isLoading 
+                          ? 'Starting camera stream...' 
+                          : cameraState.error 
+                            ? `Error: ${cameraState.error}`
+                            : 'Click "Start Stream" to begin watching'
                         }
                       </p>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={refreshStatus}
-                      className="px-3 py-1.5 text-sm bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
-                    >
-                      Refresh
-                    </button>
-                    <button
-                      onClick={cameraState.isConnected ? disconnectCamera : connectCamera}
-                      className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                        cameraState.isConnected
-                          ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800'
-                          : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800'
-                      }`}
-                    >
-                      {cameraState.isConnected ? 'Disconnect' : 'Connect'}
-                    </button>
-                  </div>
-                </div>
+                )}
+
+                {/* Video Overlay - Only show when connected */}
+                {cameraState.isConnected && cameraState.streamUrl && (
+                  <>
+                    <VideoOverlay
+                      isRecording={cameraState.isRecording}
+                      connectionQuality={connectionQuality}
+                      isConnected={cameraState.isConnected}
+                    />
+
+                    {/* Video Controls Overlay */}
+                    <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="bg-black/70 backdrop-blur-sm rounded-lg p-4">
+                        <VideoControls
+                          isConnected={cameraState.isConnected}
+                          quality={cameraState.quality}
+                          onQualityChange={changeQuality}
+                          onSnapshot={handleSnapshot}
+                          onFullscreenToggle={handleFullscreenToggle}
+                          isFullscreen={isFullscreen}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
+
+
             </div>
 
             {/* Control Panel */}
             <div className="lg:col-span-1">
               <div className="space-y-6">
                 
+                {/* Stream Controls Card */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                    Camera Control
+                  </h3>
+                  <div className="space-y-3">
+                    {!cameraState.isConnected ? (
+                      <button
+                        onClick={connectCamera}
+                        disabled={cameraState.isLoading}
+                        className={`w-full px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                          cameraState.isLoading
+                            ? 'bg-yellow-500 text-white cursor-not-allowed'
+                            : 'bg-green-500 hover:bg-green-600 text-white shadow-lg'
+                        }`}
+                      >
+                        {cameraState.isLoading ? '⏳ Starting...' : '▶️ Start Stream'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={disconnectCamera}
+                        className="w-full px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 shadow-lg"
+                      >
+                        ⏹ Stop Stream
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={refreshStatus}
+                      className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 shadow-lg"
+                    >
+                      🔄 Refresh Status
+                    </button>
+                  </div>
+                </div>
+
                 {/* Audio Controls Card */}
                 <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
@@ -232,40 +280,98 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Quick Stats Card */}
+                {/* Developer Tools Card */}
                 <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                    Statistics
+                    Developer Tools
+                  </h3>
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleCopyToken}
+                      className={`w-full px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg ${
+                        tokenCopied 
+                          ? 'bg-green-500 hover:bg-green-600 text-white' 
+                          : 'bg-purple-500 hover:bg-purple-600 text-white'
+                      }`}
+                    >
+                      {tokenCopied ? '✅ Token Copied!' : '🔑 Copy JWT Token'}
+                    </button>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Copy your current JWT token to clipboard for backend API testing
+                    </p>
+                  </div>
+                </div>
+
+                {/* Camera Status Card */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                    Camera Status
                   </h3>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-400">Status:</span>
-                      <span className={`font-medium ${
-                        cameraState.isConnected 
-                          ? 'text-green-600 dark:text-green-400' 
-                          : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {cameraState.isConnected ? 'Online' : 'Offline'}
-                      </span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600 dark:text-slate-400">Stream:</span>
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          cameraState.isConnected 
+                            ? 'bg-green-500 animate-pulse' 
+                            : cameraState.isLoading 
+                              ? 'bg-yellow-500 animate-pulse' 
+                              : 'bg-red-500'
+                        }`} />
+                        <span className={`font-medium ${
+                          cameraState.isConnected 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : cameraState.isLoading
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {cameraState.isConnected 
+                            ? 'Streaming' 
+                            : cameraState.isLoading 
+                              ? 'Starting...'
+                              : 'Stopped'
+                          }
+                        </span>
+                      </div>
                     </div>
+                    
                     <div className="flex justify-between">
                       <span className="text-slate-600 dark:text-slate-400">Quality:</span>
                       <span className="font-medium text-slate-900 dark:text-slate-100">
                         {cameraState.quality}
                       </span>
                     </div>
+                    
                     <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-400">Latency:</span>
-                      <span className="font-medium text-slate-900 dark:text-slate-100">
-                        {connectionLatency > 0 ? `${connectionLatency}ms` : 'N/A'}
+                      <span className="text-slate-600 dark:text-slate-400">Connection:</span>
+                      <span className={`font-medium ${
+                        connectionQuality === 'excellent' ? 'text-green-600 dark:text-green-400' :
+                        connectionQuality === 'good' ? 'text-yellow-600 dark:text-yellow-400' :
+                        connectionQuality === 'poor' ? 'text-orange-600 dark:text-orange-400' :
+                        'text-red-600 dark:text-red-400'
+                      }`}>
+                        {connectionLatency > 0 ? `${connectionLatency}ms (${connectionQuality})` : 'N/A'}
                       </span>
                     </div>
+                    
                     <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-400">Audio:</span>
-                      <span className="font-medium text-slate-900 dark:text-slate-100">
-                        {audioState.microphoneEnabled ? 'Active' : 'Inactive'}
+                      <span className="text-slate-600 dark:text-slate-400">Recording:</span>
+                      <span className={`font-medium ${
+                        cameraState.isRecording 
+                          ? 'text-red-600 dark:text-red-400' 
+                          : 'text-slate-600 dark:text-slate-400'
+                      }`}>
+                        {cameraState.isRecording ? 'Active' : 'Inactive'}
                       </span>
                     </div>
+                    
+                    {cameraState.error && (
+                      <div className="pt-2 border-t border-slate-200 dark:border-slate-600">
+                        <span className="text-red-600 dark:text-red-400 text-xs">
+                          Error: {cameraState.error}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -274,5 +380,13 @@ export default function HomePage() {
         </main>
       </div>
     </Layout>
+  );
+}
+
+export default function Home() {
+  return (
+    <ProtectedRoute>
+      <HomePage />
+    </ProtectedRoute>
   );
 }

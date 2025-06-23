@@ -10,7 +10,7 @@ export function useCamera() {
     isConnected: false,
     streamUrl: null,
     quality: quality,
-    isLoading: true,
+    isLoading: false,
     error: null,
     isRecording: false,
   });
@@ -18,6 +18,11 @@ export function useCamera() {
   const [connectionLatency, setConnectionLatency] = useState<number>(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const healthCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const streamTokenRenewalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastStatusCheckRef = useRef<number>(0);
+  const statusCacheTimeoutMs = 5000; // Cache status for 5 seconds
+  const streamTokenRenewalMs = 4 * 60 * 1000; // Renew every 4 minutes (before 5min expiry)
 
   // Get connection quality based on latency
   const getConnectionQuality = useCallback((latency: number): ConnectionQuality => {
@@ -27,33 +32,61 @@ export function useCamera() {
     return 'poor';
   }, [cameraState.isConnected]);
 
-  // Check camera status
-  const checkCameraStatus = useCallback(async () => {
+  // Lightweight health check using new endpoint
+  const performHealthCheck = useCallback(async (): Promise<boolean> => {
     try {
-      const [status, latency] = await Promise.all([
-        cameraApi.getStatus(),
-        cameraApi.testLatency(),
+      const start = Date.now();
+      const health = await cameraApi.healthCheck();
+      const latency = Date.now() - start;
+      
+      setConnectionLatency(latency);
+      return health && health.status === 'healthy';
+    } catch (error) {
+      console.error('Health check failed:', error);
+      setConnectionLatency(-1);
+      return false;
+    }
+  }, []);
+
+  // Check stream status with caching
+  const checkStreamStatus = useCallback(async (forceCheck = false) => {
+    const now = Date.now();
+    
+    // Use cached status if recent enough (unless forced)
+    if (!forceCheck && (now - lastStatusCheckRef.current) < statusCacheTimeoutMs) {
+      return;
+    }
+
+    try {
+      const [streamStatus, isHealthy] = await Promise.all([
+        cameraApi.getStreamStatus(),
+        performHealthCheck(),
       ]);
 
-      setConnectionLatency(latency);
+      lastStatusCheckRef.current = now;
       
       // Check if status is valid before accessing its properties
-      if (!status) {
-        throw new Error('Failed to get camera status');
+      if (!streamStatus) {
+        throw new Error('Failed to get stream status');
       }
+      
+      // Get authenticated stream URL with streaming token if streaming
+      const streamUrl = streamStatus.streaming 
+        ? await cameraApi.getAuthenticatedVideoStreamUrl() 
+        : null;
       
       setCameraState(prev => ({
         ...prev,
-        isConnected: status.camera_available,
-        streamUrl: status.camera_available ? cameraApi.getVideoStreamUrl() : null,
+        isConnected: streamStatus.streaming && streamStatus.camera_available && isHealthy,
+        streamUrl: streamUrl,
         isLoading: false,
-        error: status.error || null,
+        error: streamStatus.error || null,
         quality: quality,
       }));
 
-      return status;
+      return streamStatus;
     } catch (error) {
-      console.error('Camera status check failed:', error);
+      console.error('Stream status check failed:', error);
       setCameraState(prev => ({
         ...prev,
         isConnected: false,
@@ -64,24 +97,66 @@ export function useCamera() {
       setConnectionLatency(-1);
       return null;
     }
-  }, [quality]);
+  }, [quality, performHealthCheck]);
 
-  // Connect to camera
+  // Renew streaming token for continued access
+  const renewStreamToken = useCallback(async () => {
+    if (cameraState.isConnected && cameraState.streamUrl) {
+      try {
+        // Get fresh streaming token and update stream URL
+        const newStreamUrl = await cameraApi.getAuthenticatedVideoStreamUrl();
+        setCameraState(prev => ({
+          ...prev,
+          streamUrl: newStreamUrl
+        }));
+        console.log('Streaming token renewed successfully');
+      } catch (error) {
+        console.error('Failed to renew streaming token:', error);
+        // Don't disconnect on token renewal failure - let existing token expire naturally
+      }
+    }
+  }, [cameraState.isConnected, cameraState.streamUrl]);
+
+  // Connect to camera and start stream
   const connectCamera = useCallback(async () => {
     setCameraState(prev => ({ ...prev, isLoading: true, error: null }));
     
-    const status = await checkCameraStatus();
-    
-    if (!status?.camera_available) {
-      // Schedule reconnection attempt
-      reconnectTimeoutRef.current = setTimeout(() => {
-        connectCamera();
-      }, DEFAULTS.RECONNECT_DELAY);
+    try {
+      // Start streaming first
+      await cameraApi.startStream();
+      
+      // Then check status
+      const status = await checkStreamStatus(true); // Force check on connect
+      
+      if (!status?.streaming || !status?.camera_available) {
+        // Schedule reconnection attempt with exponential backoff
+        const delay = Math.min(DEFAULTS.RECONNECT_DELAY * 2, 30000); // Max 30 seconds
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connectCamera();
+        }, delay);
+      } else {
+        // Set up token renewal for connected stream
+        streamTokenRenewalRef.current = setInterval(renewStreamToken, streamTokenRenewalMs);
+      }
+    } catch (error) {
+      console.error('Failed to start stream:', error);
+      setCameraState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: 'Failed to start stream',
+      }));
     }
-  }, [checkCameraStatus]);
+  }, [checkStreamStatus, renewStreamToken, streamTokenRenewalMs]);
 
-  // Disconnect camera
-  const disconnectCamera = useCallback(() => {
+  // Disconnect camera and stop stream
+  const disconnectCamera = useCallback(async () => {
+    try {
+      // Stop streaming
+      await cameraApi.stopStream();
+    } catch (error) {
+      console.error('Failed to stop stream:', error);
+    }
+
     setCameraState(prev => ({
       ...prev,
       isConnected: false,
@@ -90,7 +165,7 @@ export function useCamera() {
       error: null,
     }));
 
-    // Clear intervals and timeouts
+    // Clear all intervals and timeouts
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -98,6 +173,14 @@ export function useCamera() {
     if (statusIntervalRef.current) {
       clearInterval(statusIntervalRef.current);
       statusIntervalRef.current = null;
+    }
+    if (healthCheckIntervalRef.current) {
+      clearInterval(healthCheckIntervalRef.current);
+      healthCheckIntervalRef.current = null;
+    }
+    if (streamTokenRenewalRef.current) {
+      clearInterval(streamTokenRenewalRef.current);
+      streamTokenRenewalRef.current = null;
     }
   }, []);
 
@@ -109,9 +192,9 @@ export function useCamera() {
     // Refresh stream with new quality (in real implementation, this would 
     // send a quality change request to the backend)
     if (cameraState.isConnected) {
-      checkCameraStatus();
+      checkStreamStatus(true); // Force check to refresh stream
     }
-  }, [cameraState.isConnected, checkCameraStatus, setQuality]);
+  }, [cameraState.isConnected, checkStreamStatus, setQuality]);
 
   // Take snapshot
   const takeSnapshot = useCallback(async (): Promise<string | null> => {
@@ -138,12 +221,18 @@ export function useCamera() {
     setCameraState(prev => ({ ...prev, isRecording: false }));
   }, []);
 
-  // Set up periodic status checking
+  // Set up periodic status checking with reduced frequency
   useEffect(() => {
     if (cameraState.isConnected) {
+      // Full status check every 2 minutes (reduced from 30 seconds)
       statusIntervalRef.current = setInterval(() => {
-        checkCameraStatus();
-      }, 30000); // Check every 30 seconds
+        checkStreamStatus(true);
+      }, 120000);
+
+      // Lightweight health check every 30 seconds
+      healthCheckIntervalRef.current = setInterval(() => {
+        performHealthCheck();
+      }, 30000);
     }
 
     return () => {
@@ -151,8 +240,12 @@ export function useCamera() {
         clearInterval(statusIntervalRef.current);
         statusIntervalRef.current = null;
       }
+      if (healthCheckIntervalRef.current) {
+        clearInterval(healthCheckIntervalRef.current);
+        healthCheckIntervalRef.current = null;
+      }
     };
-  }, [cameraState.isConnected, checkCameraStatus]);
+  }, [cameraState.isConnected, checkStreamStatus, performHealthCheck]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -165,8 +258,14 @@ export function useCamera() {
         clearInterval(statusIntervalRef.current);
         statusIntervalRef.current = null;
       }
+      if (healthCheckIntervalRef.current) {
+        clearInterval(healthCheckIntervalRef.current);
+        healthCheckIntervalRef.current = null;
+      }
     };
   }, []);
+
+
 
   return {
     cameraState,
@@ -178,6 +277,6 @@ export function useCamera() {
     takeSnapshot,
     startRecording,
     stopRecording,
-    refreshStatus: checkCameraStatus,
+    refreshStatus: () => checkStreamStatus(true),
   };
 } 
