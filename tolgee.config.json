@@ -1,6 +1,6 @@
 {
   "projectId": "2",
-  "apiUrl": "http://localhost:8085",
+  "apiUrl": "https://tolgee.thanhpt.xyz",
   "apiKey": "tgpak_gjpti4dbn5tw2ytrny2ggzdqnbydq5jqgezxi5tvg5tgm",
   "patterns": [
     "./src/lib/locales/{languageTag}.json"
@@ -9,7 +9,7 @@
     "files": [
       {
         "path": "./src/lib/locales/vi.json",
-        "languageTag": "vi"
+        "languageTag": "vi-VN"
       },
       {
         "path": "./src/lib/locales/en.json", 

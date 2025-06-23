@@ -27,7 +27,18 @@
     "error": "Camera error",
     "no_feed": "No camera feed",
     "reconnecting": "Reconnecting...",
+    "stream": {
+      "stopped": "Camera stopped",
+      "loading": "Starting camera...",
+      "error": "Error: {{error}}",
+      "click_to_start": "Click 'Start' to begin streaming"
+    },
     "controls": {
+      "title": "Camera Controls",
+      "start_stream": "Start Stream",
+      "stop_stream": "Stop Stream",
+      "loading": "Starting...",
+      "refresh_status": "Refresh Status",
       "quality": "Quality",
       "volume": "Volume", 
       "fullscreen": "Fullscreen",
