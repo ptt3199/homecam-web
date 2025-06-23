@@ -17,6 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PTT Home Camera",
   description: "Private home camera streaming with authentication",
+  icons: {
+    icon: '/cctv.svg',
+    shortcut: '/cctv.svg',
+    apple: '/cctv.svg',
+  },
 };
 
 // Wrapper component to handle Clerk initialization
