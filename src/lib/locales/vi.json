@@ -1,0 +1,59 @@
+{
+  "app": {
+    "title": "PTT Home Camera",
+    "subtitle": "Hệ thống giám sát camera thông minh"
+  },
+  "header": {
+    "title": "PTT Home",
+    "subtitle": "Hệ thống giám sát camera",
+    "connection": {
+      "excellent": "Tuyệt vời",
+      "good": "Tốt",
+      "poor": "Kém",
+      "disconnected": "Mất kết nối"
+    }
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "admin_login": "Đăng nhập quản trị",
+    "welcome": "Chào mừng",
+    "unauthorized": "Không có quyền truy cập"
+  },
+  "camera": {
+    "start": "Bắt đầu",
+    "stop": "Dừng",
+    "loading": "Đang tải...",
+    "error": "Lỗi camera",
+    "no_feed": "Không có tín hiệu camera",
+    "reconnecting": "Đang kết nối lại...",
+    "stream": {
+      "stopped": "Camera đã dừng",
+      "loading": "Đang khởi động camera...",
+      "error": "Lỗi: {{error}}",
+      "click_to_start": "Nhấn 'Bắt đầu' để khởi động camera"
+    },
+    "controls": {
+      "title": "Điều khiển Camera",
+      "start_stream": "Bắt đầu phát",
+      "stop_stream": "Dừng phát",
+      "loading": "Đang khởi động...",
+      "refresh_status": "Làm mới trạng thái",
+      "quality": "Chất lượng",
+      "volume": "Âm lượng",
+      "fullscreen": "Toàn màn hình",
+      "audio": "Âm thanh"
+    }
+  },
+  "status": {
+    "online": "Trực tuyến",
+    "offline": "Ngoại tuyến",
+    "connecting": "Đang kết nối",
+    "error": "Lỗi"
+  },
+  "settings": {
+    "language": "Ngôn ngữ",
+    "theme": "Giao diện",
+    "notifications": "Thông báo"
+  }
+}

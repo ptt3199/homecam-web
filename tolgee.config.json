@@ -1,0 +1,20 @@
+{
+  "projectId": "2",
+  "apiUrl": "http://localhost:8085",
+  "apiKey": "tgpak_gjpti4dbn5tw2ytrny2ggzdqnbydq5jqgezxi5tvg5tgm",
+  "patterns": [
+    "./src/lib/locales/{languageTag}.json"
+  ],
+  "push": {
+    "files": [
+      {
+        "path": "./src/lib/locales/vi.json",
+        "languageTag": "vi"
+      },
+      {
+        "path": "./src/lib/locales/en.json", 
+        "languageTag": "en"
+      }
+    ]
+  }
+} 

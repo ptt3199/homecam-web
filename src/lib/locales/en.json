@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "PTT Home Camera",
+    "subtitle": "Smart camera monitoring system"
+  },
+  "header": {
+    "title": "PTT Home",
+    "subtitle": "Home Surveillance System",
+    "connection": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "poor": "Poor",
+      "disconnected": "Disconnected"
+    }
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout", 
+    "admin_login": "Admin Login",
+    "welcome": "Welcome",
+    "unauthorized": "Unauthorized access"
+  },
+  "camera": {
+    "start": "Start",
+    "stop": "Stop",
+    "loading": "Loading...",
+    "error": "Camera error",
+    "no_feed": "No camera feed",
+    "reconnecting": "Reconnecting...",
+    "controls": {
+      "quality": "Quality",
+      "volume": "Volume", 
+      "fullscreen": "Fullscreen",
+      "audio": "Audio"
+    }
+  },
+  "status": {
+    "online": "Online",
+    "offline": "Offline", 
+    "connecting": "Connecting",
+    "error": "Error"
+  },
+  "settings": {
+    "language": "Language",
+    "theme": "Theme",
+    "notifications": "Notifications"
+  }
+}

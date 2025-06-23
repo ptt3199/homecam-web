@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs';
 import "./globals.css";
+import { TolgeeNextProvider } from '@/components/providers/TolgeeProvider';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,11 +39,11 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkWrapper>
-      <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
-          {children}
+      <html lang="vi">
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+          <TolgeeNextProvider language="vi-VN">
+            {children}
+          </TolgeeNextProvider>
         </body>
       </html>
     </ClerkWrapper>

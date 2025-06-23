@@ -13,12 +13,14 @@ import { useAudio } from '@/hooks/useAudio';
 import { useFullscreen } from '@/hooks/useFullscreen';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { cameraApi } from '@/lib/api';
+import { useTranslate } from '@tolgee/react';
+import { TolgeeDebug } from '@/components/debug/TolgeeDebug';
 
 function HomePage() {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const { getToken } = useAuth();
   const [tokenCopied, setTokenCopied] = useState(false);
-
+  const { t } = useTranslate();
   // Initialize hooks
   const {
     cameraState,
@@ -152,14 +154,14 @@ function HomePage() {
                         📹
                       </div>
                       <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">
-                        Camera Stream Stopped
+                        {t('camera.stream.stopped')}
                       </h3>
                       <p className="text-sm text-slate-500 dark:text-slate-500">
                         {cameraState.isLoading 
-                          ? 'Starting camera stream...' 
+                          ? t('camera.stream.loading') 
                           : cameraState.error 
-                            ? `Error: ${cameraState.error}`
-                            : 'Click "Start Stream" to begin watching'
+                            ? t('camera.stream.error', { error: cameraState.error })
+                            : t('camera.stream.click_to_start')
                         }
                       </p>
                     </div>
@@ -202,7 +204,7 @@ function HomePage() {
                 {/* Stream Controls Card */}
                 <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                    Camera Control
+                    {t('camera.controls.title')}
                   </h3>
                   <div className="space-y-3">
                     {!cameraState.isConnected ? (
@@ -215,14 +217,14 @@ function HomePage() {
                             : 'bg-green-500 hover:bg-green-600 text-white shadow-lg'
                         }`}
                       >
-                        {cameraState.isLoading ? '⏳ Starting...' : '▶️ Start Stream'}
+                        {cameraState.isLoading ? t('camera.controls.loading') : t('camera.controls.start_stream')}
                       </button>
                     ) : (
                       <button
                         onClick={disconnectCamera}
                         className="w-full px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 shadow-lg"
                       >
-                        ⏹ Stop Stream
+                        {t('camera.controls.stop_stream')}
                       </button>
                     )}
                     
@@ -230,7 +232,7 @@ function HomePage() {
                       onClick={refreshStatus}
                       className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 shadow-lg"
                     >
-                      🔄 Refresh Status
+                      {t('camera.controls.refresh_status')}
                     </button>
                   </div>
                 </div>
@@ -379,6 +381,7 @@ function HomePage() {
           </div>
         </main>
       </div>
+      <TolgeeDebug />
     </Layout>
   );
 }
