@@ -82,7 +82,7 @@ class ApiClient {
   private getToken: (() => Promise<string | null>) | null = null;
 
   constructor() {
-    this.baseUrl = API_CONFIG.BASE_URL;
+    this.baseUrl = API_CONFIG.BASE_URL || '';
     this.retryAttempts = API_CONFIG.RETRY_ATTEMPTS;
     this.retryDelay = API_CONFIG.RETRY_DELAY;
   }

@@ -71,5 +71,5 @@ export type CameraDebugCameraDebugGetResponses = {
 };
 
 export type ClientOptions = {
-    baseURL: 'http://localhost:8000' | (string & {});
+    baseURL: (string & {});
 };
