@@ -25,6 +25,7 @@ export function TolgeeDebug() {
       setTestTranslation(translation);
       setKeyStatus(keyExists ? '✅ Key found' : '❌ Key missing/fallback');
     } catch (e) {
+      console.log('Error', e)
       setTestTranslation('ERROR');
       setKeyStatus('❌ Translation error');
     }

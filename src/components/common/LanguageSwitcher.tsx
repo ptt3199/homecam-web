@@ -1,10 +1,9 @@
 'use client';
 
-import { useTranslate, useTolgee } from '@tolgee/react';
+import { useTolgee } from '@tolgee/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function LanguageSwitcher() {
-  const { t } = useTranslate();
   const tolgee = useTolgee(['language']);
   
   const languages = [
